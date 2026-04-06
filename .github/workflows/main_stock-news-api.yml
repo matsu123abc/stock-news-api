@@ -39,5 +39,5 @@ jobs:
     - name: Deploy to Azure Web App
       uses: azure/webapps-deploy@v2
       with:
-        app-name: "stock-news-api"
+        app-name: "stock-news-api-b3bzg9dzbtgmdxbz"
         package: package
