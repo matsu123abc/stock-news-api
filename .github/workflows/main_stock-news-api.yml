@@ -13,7 +13,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    # 🔥 Azure Login（AZURE_CREDENTIALS を使う）
     - name: Azure Login
       uses: azure/login@v1
       with:
@@ -29,7 +28,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # 🔥 ZIP を使わず、package フォルダにコピーしてデプロイ
     - name: Prepare package folder
       run: |
         mkdir package
