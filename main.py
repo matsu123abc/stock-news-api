@@ -403,9 +403,9 @@ async function extractNews() {
     const r = await fetch("/extract_news", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(url)
+        body: JSON.stringify({ url: url })
     });
-
+        
     const data = await r.json();
     document.getElementById("newsInput").value = data.text || "本文抽出に失敗しました";
 }
