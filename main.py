@@ -162,3 +162,50 @@ def company_summary(req: SummaryRequest):
 
     except Exception as e:
         return {"error": str(e)}
+
+class SummaryJaRequest(BaseModel):
+    ticker: str
+
+@app.post("/company_summary_ja")
+def company_summary_ja(req: SummaryJaRequest):
+    ticker = req.ticker.strip()
+    if not ticker:
+        return {"error": "ティッカーを入力してください。"}
+
+    try:
+        t = yf.Ticker(ticker)
+        info = t.info
+
+        name = info.get("shortName") or info.get("longName") or ticker
+        sector = info.get("sector", "不明")
+        summary_en = info.get("longBusinessSummary", "")
+
+        if not summary_en:
+            return {"error": "企業概要データがありません。"}
+
+        # GPT に日本語要約させる
+        prompt = f"""
+以下は企業の英語説明です。これを日本語で5〜7行に要約してください。
+
+【企業説明（英語）】
+{summary_en}
+"""
+
+        res = client.chat.completions.create(
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+        )
+
+        summary_ja = res.choices[0].message.content.strip()
+
+        return {
+            "ticker": ticker,
+            "name": name,
+            "sector": sector,
+            "summary_ja": summary_ja
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
