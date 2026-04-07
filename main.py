@@ -135,3 +135,30 @@ def stock_trend(req: TrendRequest):
 
     except Exception as e:
         return {"error": str(e)}
+
+class SummaryRequest(BaseModel):
+    ticker: str
+
+@app.post("/company_summary")
+def company_summary(req: SummaryRequest):
+    ticker = req.ticker.strip()
+    if not ticker:
+        return {"error": "ティッカーを入力してください。"}
+
+    try:
+        t = yf.Ticker(ticker)
+        info = t.info
+
+        name = info.get("shortName") or info.get("longName") or ticker
+        sector = info.get("sector", "不明")
+        summary = info.get("longBusinessSummary", "")
+
+        return {
+            "ticker": ticker,
+            "name": name,
+            "sector": sector,
+            "summary": summary
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
