@@ -392,6 +392,13 @@ def analyze_news_simple(req: NewsAnalyzeRequest):
     # JSON抽出
     try:
         data = extract_json(raw)
+
+        # ★ sentiment_score の "+0.7" を "0.7" に変換
+        if "sentiment_score" in data:
+            score = data["sentiment_score"]
+            if isinstance(score, str):
+                data["sentiment_score"] = score.replace("+", "").strip()
+
     except Exception as e:
         return {"error": "JSON解析エラー", "raw": raw}
 
