@@ -294,3 +294,110 @@ def financials_summary(req: FinancialSummaryRequest):
     except Exception as e:
         return {"error": str(e)}
 
+class NewsAnalyzeRequest(BaseModel):
+    news: str
+    ticker: str
+
+@app.post("/analyze_news_simple")
+def analyze_news_simple(req: NewsAnalyzeRequest):
+    news = req.news.strip()
+    ticker = req.ticker.strip()
+
+    if not news:
+        return {"error": "ニュース本文が空です。"}
+    if not ticker:
+        return {"error": "ティッカーを入力してください。"}
+
+    # --- 企業概要（日本語） ---
+    try:
+        t = yf.Ticker(ticker)
+        info = t.info
+        name = info.get("shortName") or info.get("longName") or ticker
+        sector = info.get("sector", "不明")
+        summary_en = info.get("longBusinessSummary", "")
+    except Exception:
+        name = ticker
+        sector = "不明"
+        summary_en = ""
+
+    # GPTで日本語要約
+    if summary_en:
+        prompt_summary = f"""
+以下の企業説明を日本語で5〜7行に要約してください。
+
+【企業説明】
+{summary_en}
+"""
+        res_sum = client.chat.completions.create(
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+            messages=[{"role": "user", "content": prompt_summary}],
+            temperature=0.2,
+        )
+        summary_ja = res_sum.choices[0].message.content.strip()
+    else:
+        summary_ja = "企業概要データなし"
+
+    # --- 株価トレンド ---
+    try:
+        hist = t.history(period="3mo")
+        price_now = float(hist["Close"].iloc[-1])
+        price_3m_ago = float(hist["Close"].iloc[0])
+        ret_3m = (price_now / price_3m_ago - 1) * 100
+
+        hist_1m = hist.iloc[-21:] if len(hist) >= 21 else hist
+        price_1m_ago = float(hist_1m["Close"].iloc[0])
+        ret_1m = (price_now / price_1m_ago - 1) * 100
+    except Exception:
+        price_now = None
+        ret_1m = None
+        ret_3m = None
+
+    # --- GPT ニュース分析（軽量版） ---
+    prompt = f"""
+あなたはプロの株式アナリストです。
+以下の情報をもとに、このニュースが企業にとってどれほど重要かを分析してください。
+
+【企業名】{name}
+【セクター】{sector}
+
+【企業概要（要約）】
+{summary_ja}
+
+【株価情報】
+現在株価: {price_now}
+1ヶ月リターン: {ret_1m}
+3ヶ月リターン: {ret_3m}
+
+【ニュース本文】
+{news}
+
+【出力形式】
+以下の JSON だけを返してください：
+
+{{
+  "sentiment_score": "数値（-1.0〜+1.0）",
+  "impact": "強い上昇 / 上昇 / 中立 / 下落 / 強い下落",
+  "reason": "ニュースが企業に与える影響の理由（200文字以内）"
+}}
+"""
+
+    res = client.chat.completions.create(
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+    )
+
+    raw = res.choices[0].message.content.strip()
+
+    # JSON抽出
+    try:
+        data = extract_json(raw)
+    except Exception as e:
+        return {"error": "JSON解析エラー", "raw": raw}
+
+    return {
+        "ticker": ticker,
+        "company": name,
+        "analysis": data
+    }
+
