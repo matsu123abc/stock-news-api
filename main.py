@@ -100,3 +100,38 @@ def stock_info(req: TickerRequest):
 
     except Exception as e:
         return {"error": str(e)}
+
+class TrendRequest(BaseModel):
+    ticker: str
+
+@app.post("/stock_trend")
+def stock_trend(req: TrendRequest):
+    ticker = req.ticker.strip()
+    if not ticker:
+        return {"error": "ティッカーを入力してください。"}
+
+    try:
+        t = yf.Ticker(ticker)
+        hist = t.history(period="3mo")
+
+        if hist.empty:
+            return {"error": "株価データが取得できませんでした。"}
+
+        price_now = float(hist["Close"].iloc[-1])
+        price_3m_ago = float(hist["Close"].iloc[0])
+        ret_3m = (price_now / price_3m_ago - 1) * 100
+
+        # 1ヶ月分（21営業日）
+        hist_1m = hist.iloc[-21:] if len(hist) >= 21 else hist
+        price_1m_ago = float(hist_1m["Close"].iloc[0])
+        ret_1m = (price_now / price_1m_ago - 1) * 100
+
+        return {
+            "ticker": ticker,
+            "price_now": price_now,
+            "ret_1m": ret_1m,
+            "ret_3m": ret_3m
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
