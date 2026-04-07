@@ -8,6 +8,7 @@ from openai import AzureOpenAI
 from fastapi.responses import HTMLResponse
 from fastapi.responses import JSONResponse
 from bs4 import BeautifulSoup
+from fastapi import Query
 
 # ============================
 # FastAPI 初期化
@@ -29,14 +30,22 @@ client = AzureOpenAI(
 class NewsSearchResponse(BaseModel):
     articles: list
 
+# ============================
+# /tools/news（Gradio版の移植）
+# ============================
 @app.get("/tools/news")
-def search_news(keyword: str):
+def search_news(keyword: str = Query(..., description="検索キーワード")):
+    """
+    SERP API / Google News / Bing News など複数ソースからニュースを取得
+    """
     try:
+        serp_api_key = os.getenv("SERPAPI_KEY")
         url = "https://serpapi.com/search"
         params = {
             "engine": "google_news",
             "q": keyword,
-            "api_key": os.getenv("SERPAPI_KEY")
+            "api_key": serp_api_key,
+            "hl": "ja"
         }
         r = requests.get(url, params=params, timeout=10)
         r.raise_for_status()
@@ -49,13 +58,13 @@ def search_news(keyword: str):
                 "link": item.get("link"),
                 "source": item.get("source"),
                 "date": item.get("date"),
-                "snippet": item.get("snippet")
+                "snippet": item.get("snippet"),
             })
 
         return {"articles": articles}
 
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": str(e), "articles": []}
 
 class NewsUrl(BaseModel):
     url: str
@@ -88,109 +97,10 @@ class SimilarNewsRequest(BaseModel):
     ticker: str
 
 @app.post("/analyze_similar_news")
-def analyze_similar_news(req: SimilarNewsRequest):
-    news_text = req.news.strip()
-    ticker = req.ticker.strip()
-
-    if not news_text:
-        return {"error": "ニュース本文が空です。"}
-    if not ticker:
-        return {"error": "ティッカーコードを入力してください。"}
-
-    # --- 企業名取得 ---
-    try:
-        t = yf.Ticker(ticker)
-        company_name = t.info.get("shortName", ticker)
-    except Exception:
-        company_name = ticker
-
-    # --- GPT：検索クエリ生成 ---
-    prompt_kw = f"""
-以下のニュース本文から、Google News 検索でヒットしやすい検索クエリを1つ作成してください。
-
-【条件】
-・文章形式（名詞の羅列は禁止）
-・20〜40文字程度
-・固有名詞を含める
-・検索意図が明確な自然な文章
-・出力はクエリ1行のみ
-
-【ニュース本文】
-{news_text}
-"""
-
-    res_kw = client.chat.completions.create(
-        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        messages=[{"role": "user", "content": prompt_kw}],
-        temperature=0.2,
-    )
-    query = res_kw.choices[0].message.content.strip()
-
-    # --- SERP API 呼び出し ---
-    try:
-        url = "http://localhost:8000/tools/news"
-        r = requests.get(url, params={"keyword": query}, timeout=10)
-        r.raise_for_status()
-        articles = r.json().get("articles", [])
-    except Exception as e:
-        return {"error": "類似ニュース検索エラー", "detail": str(e)}
-
-    if not articles:
-        return {"html": "<p>類似ニュースが見つかりませんでした。</p>"}
-
-    # --- 類似ニュース一覧 HTML ---
-    rows = []
-    for a in articles:
-        rows.append(
-            f"<tr>"
-            f"<td><a href='{a.get('link','')}' target='_blank'>{a.get('title','')}</a></td>"
-            f"<td>{a.get('source','')}</td>"
-            f"<td>{a.get('date','')}</td>"
-            f"<td>{a.get('snippet','')}</td>"
-            f"</tr>"
-        )
-
-    list_html = """
-<h3>類似ニュース一覧</h3>
-<table border="1" style="border-collapse: collapse; width:100%;">
-<tr><th>タイトル</th><th>メディア</th><th>日付</th><th>概要</th></tr>
-""" + "\n".join(rows) + "</table>"
-
-    # --- GPT：まとめ分析 ---
-    news_block = ""
-    for i, a in enumerate(articles, 1):
-        news_block += f"{i}. {a.get('title','')}\n{a.get('snippet','')}\n\n"
-
-    prompt_summary = f"""
-あなたはプロの株式アナリストです。
-以下の「類似ニュース一覧」をもとに、このテーマが投資家にとってどのような意味を持つかを整理してください。
-
-【対象銘柄】
-ティッカー: {ticker}
-企業名: {company_name}
-
-【類似ニュース一覧】
-{news_block}
-
-【タスク】
-1. 類似ニュースに共通する「業界テーマ」を1〜3個に整理
-2. このテーマが、上記銘柄にとってどのような中期的な意味を持つかを説明
-3. セクター全体のトレンドを整理
-4. 投資家が今後フォローすべきポイントを3〜5個提示
-
-【出力形式】
-見出し＋箇条書き中心で、日本語で簡潔に。
-"""
-
-    res_sum = client.chat.completions.create(
-        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        messages=[{"role": "user", "content": prompt_summary}],
-        temperature=0.2,
-    )
-
-    summary_html = "<h3>類似ニュースまとめ分析</h3><p>" + res_sum.choices[0].message.content.replace("\n", "<br>") + "</p>"
-
-    return {"html": list_html + summary_html}
+def analyze_similar_news_api(payload: SimilarNewsRequest):
+    news_text = payload.news
+    ticker = payload.ticker
+    return analyze_similar_news(news_text, ticker)
 
 # ============================
 # 3. 総合ニュース分析 API（メイン）
@@ -370,7 +280,7 @@ def home():
 body { font-family: sans-serif; padding: 20px; }
 input, textarea { width: 100%; padding: 10px; margin-top: 8px; font-size: 16px; }
 button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; background: #0078D4; color: white; border: none; border-radius: 6px; }
-#result { margin-top: 30px; }
+#result, #similarResult { margin-top: 30px; }
 </style>
 </head>
 <body>
@@ -389,8 +299,10 @@ button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; backgrou
 <input id="tickerInput" placeholder="7203.T">
 
 <button onclick="analyze()">分析する</button>
+<button onclick="analyzeSimilar()">類似ニュースを検索</button>
 
 <div id="result"></div>
+<div id="similarResult"></div>
 
 <script>
 async function extractNews() {
@@ -431,6 +343,29 @@ async function analyze() {
 
     const data = await res.json();
     document.getElementById("result").innerHTML = data.html || "<p>エラーが発生しました</p>";
+}
+
+async function analyzeSimilar() {
+    const newsText = document.getElementById("newsInput").value.trim();
+    const ticker = document.getElementById("tickerInput").value.trim();
+
+    if (!newsText) {
+        alert("ニュース本文が空です");
+        return;
+    }
+    if (!ticker) {
+        alert("ティッカーコードを入力してください");
+        return;
+    }
+
+    const res = await fetch("/analyze_similar_news", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({news: newsText, ticker: ticker})
+    });
+
+    const html = await res.text();
+    document.getElementById("similarResult").innerHTML = html;
 }
 </script>
 
