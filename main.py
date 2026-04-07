@@ -391,7 +391,6 @@ def analyze_news_simple(req: NewsAnalyzeRequest):
 
     # --- JSON抽出（完全安定版） ---
     try:
-        # 最初の { と 最後の } を抽出
         start = raw.find("{")
         end = raw.rfind("}")
         if start == -1 or end == -1:
@@ -404,9 +403,10 @@ def analyze_news_simple(req: NewsAnalyzeRequest):
 
         data = json.loads(js)
 
-    except Exception:
-        return {"error": "JSON解析エラー", "raw": raw}
+    except Exception as e:
+        return {"error": "JSON解析エラー", "raw": raw, "detail": str(e)}
 
+    # --- ここから先は JSON が正しい前提で処理 ---
     return {
         "ticker": ticker,
         "company": name,
