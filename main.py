@@ -89,6 +89,142 @@ def extract_news(req: NewsUrl):
     except Exception as e:
         return JSONResponse({"error": f"本文抽出エラー: {str(e)}"})
 
+def summarize_similar_news(articles, ticker: str, company_name: str):
+    if not articles:
+        return "<p>類似ニュースが見つかりませんでした。</p>"
+
+    lines = []
+    for i, a in enumerate(articles, 1):
+        title = a.get("title", "")
+        link = a.get("link", "")
+        source = a.get("source", "")
+        date = a.get("date", "")
+        snippet = a.get("snippet", "")
+
+        lines.append(f"{i}. タイトル: {title}")
+        lines.append(f"   URL: {link}")
+        if source:
+            lines.append(f"   メディア: {source}")
+        if date:
+            lines.append(f"   日付: {date}")
+        if snippet:
+            lines.append(f"   概要: {snippet}")
+        lines.append("")
+
+    news_block = "\n".join(lines)
+
+    prompt = f"""
+あなたはプロの株式アナリストです。
+以下の「類似ニュース一覧」をもとに、このテーマが投資家にとってどのような意味を持つかを整理してください。
+
+【対象銘柄】
+ティッカー: {ticker}
+企業名: {company_name}
+
+【類似ニュース一覧】
+{news_block}
+
+【タスク】
+1. 類似ニュースに共通する「業界テーマ」を1〜3個に整理
+2. このテーマが、上記銘柄にとってどのような中期的な意味を持つかを説明
+3. セクター全体のトレンド（政策・規制・技術・需要）を整理
+4. 投資家が今後フォローすべきポイントを3〜5個、箇条書きで提示
+
+【出力形式】
+見出し＋箇条書き中心で、日本語で簡潔に。
+"""
+    res = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+    )
+    text = res.choices[0].message.content.strip()
+    return "<h3>類似ニュースまとめ分析</h3><p>" + text.replace("\n", "<br>") + "</p>"
+
+def search_similar_news(keyword: str):
+    url = "https://stock-news-api-b3bzg9dzbtgmdxbz.japanwest-01.azurewebsites.net/"
+    r = requests.get(url, params={"keyword": keyword}, timeout=10)
+    r.raise_for_status()
+    return r.json().get("articles", [])
+
+def extract_keywords(news_text: str):
+    prompt = f"""
+以下のニュース本文から、Web検索に使える重要キーワードを5〜10個抽出してください。
+・名詞のみ
+・1行に1つ
+・余計な説明は書かない
+
+【ニュース本文】
+{news_text}
+"""
+    res = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+    )
+    lines = [l.strip() for l in res.choices[0].message.content.split("\n") if l.strip()]
+    keywords = [re.sub(r"^[\-・\d\.]+\s*", "", l) for l in lines]
+    return [k for k in keywords if k]
+
+def analyze_similar_news(news_text: str, ticker: str):
+    if not news_text.strip():
+        return "ニュース本文が空です。"
+    if not ticker.strip():
+        return "ティッカーコードを入力してください。"
+
+    # 企業名取得
+    try:
+        t = yf.Ticker(ticker)
+        company_name = t.info.get("shortName", ticker)
+    except Exception:
+        company_name = ticker
+
+    # 1. キーワード抽出
+    keywords = extract_keywords(news_text)
+    if not keywords:
+        return "<p>キーワード抽出に失敗しました。</p>"
+
+    query = " ".join(keywords)
+
+    # 2. FastAPI 経由で類似ニュース検索
+    try:
+        articles = search_similar_news(query)
+
+    except Exception as e:
+        return f"<h3>類似ニュース検索エラー</h3><pre>{e}</pre>"
+
+    if not articles:
+        return "<p>類似ニュースが見つかりませんでした。</p>"
+
+    # 3. 類似ニュース一覧テーブル
+    rows = []
+    for a in articles:
+        title = a.get("title", "")
+        link = a.get("link", "")
+        source = a.get("source", "")
+        date = a.get("date", "")
+        snippet = a.get("snippet", "")
+
+        rows.append(
+            f"<tr>"
+            f"<td><a href='{link}' target='_blank'>{title}</a></td>"
+            f"<td>{source}</td>"
+            f"<td>{date}</td>"
+            f"<td>{snippet}</td>"
+            f"</tr>"
+        )
+
+    list_html = """
+<h3>類似ニュース一覧</h3>
+<table border="1" style="border-collapse: collapse;">
+<tr><th>タイトル</th><th>メディア</th><th>日付</th><th>概要</th></tr>
+""" + "\n".join(rows) + "</table>"
+
+    # 4. GPT によるまとめ分析
+    summary_html = summarize_similar_news(articles, ticker, company_name)
+
+    return list_html + summary_html
+
 # ============================
 # 2. 類似ニュース分析 API
 # ============================
