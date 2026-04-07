@@ -219,7 +219,7 @@ def financials(req: FinancialRequest):
         return {"error": "ティッカーを入力してください。"}
 
     try:
-        t = yf.TTicker(ticker)
+        t = yf.Ticker(ticker)
         fin = t.financials
 
         if fin is None or fin.empty:
