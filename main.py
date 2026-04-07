@@ -209,3 +209,35 @@ def company_summary_ja(req: SummaryJaRequest):
     except Exception as e:
         return {"error": str(e)}
 
+class FinancialRequest(BaseModel):
+    ticker: str
+
+@app.post("/financials")
+def financials(req: FinancialRequest):
+    ticker = req.ticker.strip()
+    if not ticker:
+        return {"error": "ティッカーを入力してください。"}
+
+    try:
+        t = yf.TTicker(ticker)
+        fin = t.financials
+
+        if fin is None or fin.empty:
+            return {"error": "業績データが取得できませんでした。"}
+
+        # 最新4期分だけ抽出
+        fin = fin.T[["Total Revenue", "Net Income", "Diluted EPS"]].tail(4)
+        fin.columns = ["売上高", "純利益", "EPS"]
+
+        # JSON 形式で返す
+        data = fin.reset_index().rename(columns={"index": "期"})  
+        records = data.to_dict(orient="records")
+
+        return {
+            "ticker": ticker,
+            "financials": records
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
