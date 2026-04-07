@@ -703,11 +703,14 @@ EPS: {eps}
     chart_url = f"https://stocks.finance.yahoo.co.jp/stocks/chart/?code={ticker}"
 
     # --- HTML 結合 ---
+    summary_html = summary_ja.replace("\n", "<br>")
+    fin_html = fin_summary.replace("\n", "<br>")
+
     html = f"""
 <h2>{name}（{ticker}）ニュース総合分析</h2>
 
 <h3>企業概要</h3>
-<p>{summary_ja.replace("\n", "<br>")}</p>
+<p>{summary_html}</p>
 
 <h3>株価トレンド</h3>
 <p>現在株価: {price_now}<br>
@@ -715,7 +718,7 @@ EPS: {eps}
 3ヶ月リターン: {ret_3m}%</p>
 
 <h3>業績サマリー</h3>
-<p>{fin_summary.replace("\n", "<br>")}</p>
+<p>{fin_html}</p>
 
 <h3>ニュース分析</h3>
 <p><b>スコア:</b> {analysis["sentiment_score"]}<br>
