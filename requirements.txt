@@ -7,3 +7,9 @@ lxml
 
 openai
 python-dotenv
+
+pandas
+numpy
+yfinance
+python-dateutil
+pytz

@@ -4,6 +4,7 @@ import requests
 from bs4 import BeautifulSoup
 from openai import AzureOpenAI
 import os
+import yfinance as yf
 
 app = FastAPI()
 
@@ -65,3 +66,18 @@ def extract_company(news: str):
 
     except Exception as e:
         return JSONResponse({"error": str(e)})
+
+# ============================
+# 企業名 → ティッカー検索
+# ============================
+@app.post("/search_ticker")
+def search_ticker(company: str):
+    try:
+        result = yf.search(company)
+        if result and len(result) > 0:
+            ticker = result[0]["symbol"]
+            return {"company": company, "ticker": ticker}
+        else:
+            return {"company": company, "ticker": None}
+    except Exception as e:
+        return {"error": str(e)}
