@@ -73,11 +73,20 @@ def extract_company(news: str):
 @app.post("/search_ticker")
 def search_ticker(company: str):
     try:
-        result = yf.search(company)
-        if result and len(result) > 0:
-            ticker = result[0]["symbol"]
-            return {"company": company, "ticker": ticker}
-        else:
-            return {"company": company, "ticker": None}
+        # yfinance の最小動作確認：トヨタの情報を返す
+        ticker = yf.Ticker("7203.T")  # トヨタ
+        info = ticker.info
+
+        name = info.get("longName")
+        price = info.get("regularMarketPrice")
+
+        return {
+            "test": "yfinance minimal test",
+            "ticker": "7203.T",
+            "name": name,
+            "price": price
+        }
+
     except Exception as e:
         return {"error": str(e)}
+
