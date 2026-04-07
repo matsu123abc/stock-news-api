@@ -5,6 +5,7 @@ import json
 import yfinance as yf
 from pydantic import BaseModel
 from openai import AzureOpenAI
+from fastapi.responses import HTMLResponse
 
 # ============================
 # FastAPI 初期化
@@ -330,3 +331,72 @@ EPS: {eps}
 """
 
     return {"html": html}
+
+@app.get("/", response_class=HTMLResponse)
+def home():
+    return """
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ニュース分析ツール</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body { font-family: sans-serif; padding: 20px; }
+input, textarea { width: 100%; padding: 10px; margin-top: 8px; font-size: 16px; }
+button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; background: #0078D4; color: white; border: none; border-radius: 6px; }
+#result { margin-top: 30px; }
+</style>
+</head>
+<body>
+
+<h2>ニュース総合分析ツール</h2>
+
+<label>ニュースURL（任意）</label>
+<input id="urlInput" placeholder="https://example.com/news/123">
+
+<label>ニュース本文</label>
+<textarea id="newsInput" rows="6" placeholder="ニュース本文を貼り付け"></textarea>
+
+<label>ティッカーコード</label>
+<input id="tickerInput" placeholder="7203.T">
+
+<button onclick="analyze()">分析する</button>
+
+<div id="result"></div>
+
+<script>
+async function analyze() {
+    const url = document.getElementById("urlInput").value.trim();
+    const news = document.getElementById("newsInput").value.trim();
+    const ticker = document.getElementById("tickerInput").value.trim();
+
+    let newsText = news;
+
+    // URL が入力されていたら本文抽出
+    if (url) {
+        const r = await fetch("/extract_news", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify(url)
+        });
+        const data = await r.json();
+        newsText = data.text || news;
+        document.getElementById("newsInput").value = newsText;
+    }
+
+    // 総合分析
+    const res = await fetch("/analyze_news_with_ticker", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({news: newsText, ticker: ticker})
+    });
+
+    const data = await res.json();
+    document.getElementById("result").innerHTML = data.html || "<p>エラーが発生しました</p>";
+}
+</script>
+
+</body>
+</html>
+"""
