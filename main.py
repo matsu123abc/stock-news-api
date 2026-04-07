@@ -439,14 +439,19 @@ def analyze_similar_news(req: SimilarNewsRequest):
 
     # --- 1. GPT キーワード抽出 ---
     prompt_kw = f"""
-以下のニュース本文から、Web検索に使える重要キーワードを5〜10個抽出してください。
-・名詞のみ
-・1行に1つ
-・余計な説明は書かない
+    以下のニュース本文から、Google News 検索でヒットしやすい検索クエリを1つ作成してください。
 
-【ニュース本文】
-{news_text}
-"""
+    【条件】
+    ・文章形式（名詞の羅列は禁止）
+    ・20〜40文字程度
+    ・固有名詞を含める
+    ・検索意図が明確な自然な文章
+    ・余計な説明は書かない
+    ・出力はクエリ1行のみ
+
+    【ニュース本文】
+    {news_text}
+    """
 
     res_kw = client.chat.completions.create(
         model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
@@ -454,13 +459,7 @@ def analyze_similar_news(req: SimilarNewsRequest):
         temperature=0.2,
     )
 
-    lines = [l.strip() for l in res_kw.choices[0].message.content.split("\n") if l.strip()]
-    keywords = [re.sub(r"^[\-・\d\.]+\s*", "", l) for l in lines]
-
-    if not keywords:
-        return {"error": "キーワード抽出に失敗しました。"}
-
-    query = " ".join(keywords)
+    query = res_kw.choices[0].message.content.strip()
 
     # --- 2. FastAPI /tools/news に問い合わせ ---
     try:
