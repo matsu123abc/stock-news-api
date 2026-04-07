@@ -57,22 +57,22 @@ def search_news(keyword: str):
     except Exception as e:
         return {"error": str(e)}
 
+class NewsUrl(BaseModel):
+    url: str
+
 @app.post("/extract_news")
-def extract_news(url: str):
+def extract_news(req: NewsUrl):
     """
     ニュースURLから本文を抽出するAPI
     """
     try:
-        r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        r = requests.get(req.url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
         r.raise_for_status()
 
         soup = BeautifulSoup(r.text, "html.parser")
 
-        # <p>タグをすべて抽出
         paragraphs = soup.select("p")
         text = "\n".join([p.get_text().strip() for p in paragraphs])
-
-        # 空行を除去
         text = "\n".join([line for line in text.split("\n") if line.strip()])
 
         return JSONResponse({"text": text})
