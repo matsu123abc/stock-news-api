@@ -1,27 +1,2 @@
-azure-functions
-
-# --- Data processing ---
-pandas
-numpy
-python-dateutil
-pytz
-
-# --- Finance ---
-yfinance
-
-# --- Web scraping ---
-requests
-beautifulsoup4
-lxml
-
-# --- Azure services ---
-azure-storage-blob
-azure-search-documents
-azure-core
-azure-identity
-
-# --- AI ---
-openai
-
-# --- Utility ---
-python-dotenv
+fastapi
+uvicorn
