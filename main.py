@@ -377,13 +377,13 @@ button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; backgrou
 
 <h2>ニュース総合分析ツール</h2>
 
-<label>ニュースURL</label>
+<label>ニュースURL（任意）</label>
 <input id="urlInput" placeholder="https://example.com/news/123">
 
 <button onclick="extractNews()">ニュース本文を取得</button>
 
-<label>抽出されたニュース本文</label>
-<textarea id="newsInput" rows="6" readonly placeholder="ニュース本文がここに表示されます"></textarea>
+<label>ニュース本文（自動抽出 or 手動貼り付け）</label>
+<textarea id="newsInput" rows="10" placeholder="ニュース本文を貼り付け、またはURLから抽出"></textarea>
 
 <label>ティッカーコード</label>
 <input id="tickerInput" placeholder="7203.T">
@@ -405,9 +405,9 @@ async function extractNews() {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ url: url })
     });
-        
+
     const data = await r.json();
-    document.getElementById("newsInput").value = data.text || "本文抽出に失敗しました";
+    document.getElementById("newsInput").value = data.text || "本文抽出に失敗しました。手動で貼り付けてください。";
 }
 
 async function analyze() {
@@ -415,7 +415,7 @@ async function analyze() {
     const ticker = document.getElementById("tickerInput").value.trim();
 
     if (!newsText) {
-        alert("ニュース本文が空です（URLから抽出してください）");
+        alert("ニュース本文が空です（URL抽出 or 手動貼り付けが必要です）");
         return;
     }
     if (!ticker) {
