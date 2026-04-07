@@ -389,17 +389,22 @@ def analyze_news_simple(req: NewsAnalyzeRequest):
 
     raw = res.choices[0].message.content.strip()
 
-    # JSON抽出
+    # --- JSON抽出（完全安定版） ---
     try:
-        data = extract_json(raw)
+        # 最初の { と 最後の } を抽出
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start == -1 or end == -1:
+            raise ValueError("JSON が見つかりません")
 
-        # ★ sentiment_score の "+0.7" を "0.7" に変換
-        if "sentiment_score" in data:
-            score = data["sentiment_score"]
-            if isinstance(score, str):
-                data["sentiment_score"] = score.replace("+", "").strip()
+        js = raw[start:end+1]
 
-    except Exception as e:
+        # "+0.7" → "0.7"
+        js = js.replace("+", "")
+
+        data = json.loads(js)
+
+    except Exception:
         return {"error": "JSON解析エラー", "raw": raw}
 
     return {
@@ -407,4 +412,3 @@ def analyze_news_simple(req: NewsAnalyzeRequest):
         "company": name,
         "analysis": data
     }
-
