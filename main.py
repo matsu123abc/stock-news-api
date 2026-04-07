@@ -537,3 +537,33 @@ def analyze_similar_news(req: SimilarNewsRequest):
         "html": list_html + summary_html
     }
 
+class NewsSearchResponse(BaseModel):
+    articles: list
+
+@app.get("/tools/news")
+def search_news(keyword: str):
+    try:
+        url = "https://serpapi.com/search"
+        params = {
+            "engine": "google_news",
+            "q": keyword,
+            "api_key": os.getenv("SERPAPI_KEY")
+        }
+        r = requests.get(url, params=params, timeout=10)
+        r.raise_for_status()
+        data = r.json()
+
+        articles = []
+        for item in data.get("news_results", []):
+            articles.append({
+                "title": item.get("title"),
+                "link": item.get("link"),
+                "source": item.get("source"),
+                "date": item.get("date"),
+                "snippet": item.get("snippet")
+            })
+
+        return {"articles": articles}
+
+    except Exception as e:
+        return {"error": str(e)}
