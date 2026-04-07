@@ -241,3 +241,56 @@ def financials(req: FinancialRequest):
     except Exception as e:
         return {"error": str(e)}
 
+class FinancialSummaryRequest(BaseModel):
+    ticker: str
+
+@app.post("/financials_summary")
+def financials_summary(req: FinancialSummaryRequest):
+    ticker = req.ticker.strip()
+    if not ticker:
+        return {"error": "ティッカーを入力してください。"}
+
+    try:
+        t = yf.Ticker(ticker)
+        fin = t.financials
+
+        if fin is None or fin.empty:
+            return {"error": "業績データが取得できませんでした。"}
+
+        # 最新4期分だけ抽出
+        fin = fin.T[["Total Revenue", "Net Income", "Diluted EPS"]].tail(4)
+        fin.columns = ["売上高", "純利益", "EPS"]
+
+        fin_text = fin.to_string()
+
+        # GPT に要約させる
+        prompt = f"""
+以下の業績データをもとに、企業の財務状況を5〜7行で日本語で要約してください。
+
+【業績データ】
+{fin_text}
+
+【出力形式】
+- 売上の傾向
+- 利益の傾向
+- EPSの傾向
+- 財務の健全性
+- 投資家が注目すべきポイント
+"""
+
+        res = client.chat.completions.create(
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2,
+        )
+
+        summary = res.choices[0].message.content.strip()
+
+        return {
+            "ticker": ticker,
+            "financials_summary": summary
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
+
