@@ -6,6 +6,7 @@ from openai import AzureOpenAI
 import os
 import yfinance as yf
 from pydantic import BaseModel
+import json
 
 app = FastAPI()
 
@@ -412,3 +413,126 @@ def analyze_news_simple(req: NewsAnalyzeRequest):
         "company": name,
         "analysis": data
     }
+
+class SimilarNewsRequest(BaseModel):
+    news: str
+    ticker: str
+
+
+@app.post("/analyze_similar_news")
+def analyze_similar_news(req: SimilarNewsRequest):
+    news_text = req.news.strip()
+    ticker = req.ticker.strip()
+
+    if not news_text:
+        return {"error": "ニュース本文が空です。"}
+    if not ticker:
+        return {"error": "ティッカーコードを入力してください。"}
+
+    # --- 企業名取得 ---
+    try:
+        t = yf.Ticker(ticker)
+        company_name = t.info.get("shortName", ticker)
+    except Exception:
+        company_name = ticker
+
+    # --- 1. GPT キーワード抽出 ---
+    prompt_kw = f"""
+以下のニュース本文から、Web検索に使える重要キーワードを5〜10個抽出してください。
+・名詞のみ
+・1行に1つ
+・余計な説明は書かない
+
+【ニュース本文】
+{news_text}
+"""
+
+    res_kw = client.chat.completions.create(
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        messages=[{"role": "user", "content": prompt_kw}],
+        temperature=0.2,
+    )
+
+    lines = [l.strip() for l in res_kw.choices[0].message.content.split("\n") if l.strip()]
+    keywords = [re.sub(r"^[\-・\d\.]+\s*", "", l) for l in lines]
+
+    if not keywords:
+        return {"error": "キーワード抽出に失敗しました。"}
+
+    query = " ".join(keywords)
+
+    # --- 2. FastAPI /tools/news に問い合わせ ---
+    try:
+        url = "http://localhost:8000/tools/news"
+        r = requests.get(url, params={"keyword": query}, timeout=10)
+        r.raise_for_status()
+        articles = r.json().get("articles", [])
+    except Exception as e:
+        return {"error": "類似ニュース検索エラー", "detail": str(e)}
+
+    if not articles:
+        return {"html": "<p>類似ニュースが見つかりませんでした。</p>"}
+
+    # --- 3. 類似ニュース一覧 HTML テーブル ---
+    rows = []
+    for a in articles:
+        title = a.get("title", "")
+        link = a.get("link", "")
+        source = a.get("source", "")
+        date = a.get("date", "")
+        snippet = a.get("snippet", "")
+
+        rows.append(
+            f"<tr>"
+            f"<td><a href='{link}' target='_blank'>{title}</a></td>"
+            f"<td>{source}</td>"
+            f"<td>{date}</td>"
+            f"<td>{snippet}</td>"
+            f"</tr>"
+        )
+
+    list_html = """
+<h3>類似ニュース一覧</h3>
+<table border="1" style="border-collapse: collapse; width:100%;">
+<tr><th>タイトル</th><th>メディア</th><th>日付</th><th>概要</th></tr>
+""" + "\n".join(rows) + "</table>"
+
+    # --- 4. GPT によるまとめ分析 ---
+    news_block = ""
+    for i, a in enumerate(articles, 1):
+        news_block += f"{i}. {a.get('title','')}\n{a.get('snippet','')}\n\n"
+
+    prompt_summary = f"""
+あなたはプロの株式アナリストです。
+以下の「類似ニュース一覧」をもとに、このテーマが投資家にとってどのような意味を持つかを整理してください。
+
+【対象銘柄】
+ティッカー: {ticker}
+企業名: {company_name}
+
+【類似ニュース一覧】
+{news_block}
+
+【タスク】
+1. 類似ニュースに共通する「業界テーマ」を1〜3個に整理
+2. このテーマが、上記銘柄にとってどのような中期的な意味を持つかを説明
+3. セクター全体のトレンド（政策・規制・技術・需要）を整理
+4. 投資家が今後フォローすべきポイントを3〜5個、箇条書きで提示
+
+【出力形式】
+見出し＋箇条書き中心で、日本語で簡潔に。
+"""
+
+    res_sum = client.chat.completions.create(
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        messages=[{"role": "user", "content": prompt_summary}],
+        temperature=0.2,
+    )
+
+    summary_html = "<h3>類似ニュースまとめ分析</h3><p>" + res_sum.choices[0].message.content.replace("\n", "<br>") + "</p>"
+
+    # --- 最終 HTML を返す ---
+    return {
+        "html": list_html + summary_html
+    }
+
