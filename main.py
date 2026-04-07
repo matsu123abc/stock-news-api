@@ -6,6 +6,8 @@ import yfinance as yf
 from pydantic import BaseModel
 from openai import AzureOpenAI
 from fastapi.responses import HTMLResponse
+from fastapi.responses import JSONResponse
+from bs4 import BeautifulSoup
 
 # ============================
 # FastAPI 初期化
@@ -54,6 +56,29 @@ def search_news(keyword: str):
 
     except Exception as e:
         return {"error": str(e)}
+
+@app.post("/extract_news")
+def extract_news(url: str):
+    """
+    ニュースURLから本文を抽出するAPI
+    """
+    try:
+        r = requests.get(url, timeout=10, headers={"User-Agent": "Mozilla/5.0"})
+        r.raise_for_status()
+
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        # <p>タグをすべて抽出
+        paragraphs = soup.select("p")
+        text = "\n".join([p.get_text().strip() for p in paragraphs])
+
+        # 空行を除去
+        text = "\n".join([line for line in text.split("\n") if line.strip()])
+
+        return JSONResponse({"text": text})
+
+    except Exception as e:
+        return JSONResponse({"error": f"本文抽出エラー: {str(e)}"})
 
 # ============================
 # 2. 類似ニュース分析 API
@@ -339,7 +364,7 @@ def home():
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>ニュース分析ツール</title>
+<title>ニュース総合分析ツール</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 body { font-family: sans-serif; padding: 20px; }
@@ -352,11 +377,13 @@ button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; backgrou
 
 <h2>ニュース総合分析ツール</h2>
 
-<label>ニュースURL（任意）</label>
+<label>ニュースURL</label>
 <input id="urlInput" placeholder="https://example.com/news/123">
 
-<label>ニュース本文</label>
-<textarea id="newsInput" rows="6" placeholder="ニュース本文を貼り付け"></textarea>
+<button onclick="extractNews()">ニュース本文を取得</button>
+
+<label>抽出されたニュース本文</label>
+<textarea id="newsInput" rows="6" readonly placeholder="ニュース本文がここに表示されます"></textarea>
 
 <label>ティッカーコード</label>
 <input id="tickerInput" placeholder="7203.T">
@@ -366,26 +393,36 @@ button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; backgrou
 <div id="result"></div>
 
 <script>
-async function analyze() {
+async function extractNews() {
     const url = document.getElementById("urlInput").value.trim();
-    const news = document.getElementById("newsInput").value.trim();
-    const ticker = document.getElementById("tickerInput").value.trim();
-
-    let newsText = news;
-
-    // URL が入力されていたら本文抽出
-    if (url) {
-        const r = await fetch("/extract_news", {
-            method: "POST",
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(url)
-        });
-        const data = await r.json();
-        newsText = data.text || news;
-        document.getElementById("newsInput").value = newsText;
+    if (!url) {
+        alert("ニュースURLを入力してください");
+        return;
     }
 
-    // 総合分析
+    const r = await fetch("/extract_news", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(url)
+    });
+
+    const data = await r.json();
+    document.getElementById("newsInput").value = data.text || "本文抽出に失敗しました";
+}
+
+async function analyze() {
+    const newsText = document.getElementById("newsInput").value.trim();
+    const ticker = document.getElementById("tickerInput").value.trim();
+
+    if (!newsText) {
+        alert("ニュース本文が空です（URLから抽出してください）");
+        return;
+    }
+    if (!ticker) {
+        alert("ティッカーコードを入力してください");
+        return;
+    }
+
     const res = await fetch("/analyze_news_with_ticker", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
