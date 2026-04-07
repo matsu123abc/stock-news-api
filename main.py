@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from openai import AzureOpenAI
 import os
 import yfinance as yf
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -68,25 +69,34 @@ def extract_company(news: str):
         return JSONResponse({"error": str(e)})
 
 # ============================
-# 企業名 → ティッカー検索
+# yf：企業情報取得
 # ============================
-@app.post("/search_ticker")
-def search_ticker(company: str):
-    try:
-        # yfinance の最小動作確認：トヨタの情報を返す
-        ticker = yf.Ticker("7203.T")  # トヨタ
-        info = ticker.info
 
-        name = info.get("longName")
+class TickerRequest(BaseModel):
+    ticker: str
+
+@app.post("/stock_info")
+def stock_info(req: TickerRequest):
+    ticker = req.ticker.strip()
+    if not ticker:
+        return {"error": "ティッカーを入力してください。"}
+
+    try:
+        t = yf.Ticker(ticker)
+        info = t.info
+
+        name = info.get("shortName") or info.get("longName") or ticker
         price = info.get("regularMarketPrice")
+        sector = info.get("sector")
+        currency = info.get("currency")
 
         return {
-            "test": "yfinance minimal test",
-            "ticker": "7203.T",
+            "ticker": ticker,
             "name": name,
-            "price": price
+            "price": price,
+            "sector": sector,
+            "currency": currency,
         }
 
     except Exception as e:
         return {"error": str(e)}
-
