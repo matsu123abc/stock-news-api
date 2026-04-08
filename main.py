@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 import requests
 import os
+import re
 import json
 import yfinance as yf
 from pydantic import BaseModel
