@@ -350,6 +350,10 @@ EPS: {eps}
     )
     fin_summary = res_fin.choices[0].message.content.strip()
 
+    info = yf.Ticker(ticker).info
+    company_name = info.get("longName") or info.get("shortName") or ticker
+    sector_name = info.get("sector") or "不明"
+
     # --- ニュース分析 ---
     prompt = f"""
 あなたはプロの株式アナリストです。
