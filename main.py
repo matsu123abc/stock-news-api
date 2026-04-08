@@ -300,14 +300,20 @@ def analyze_news_with_ticker(req: NewsWithTickerRequest):
 【企業説明】
 {summary_en}
 """
-        res_sum = client.chat.completions.create(
-            model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-            messages=[{"role": "user", "content": prompt_sum}],
-            temperature=0.2,
-        )
-        summary_ja = res_sum.choices[0].message.content.strip()
+        try:
+            res_sum = client.chat.completions.create(
+                model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+                messages=[{"role": "user", "content": prompt_sum}],
+                temperature=0.2,
+            )
+            summary_ja = res_sum.choices[0].message["content"].strip()
+        except Exception:
+            summary_ja = summary_en
     else:
         summary_ja = "企業概要データなし"
+
+    # ★ GRADIO版と同じ変数名に揃える
+    company_summary = summary_ja
 
     # --- 株価トレンド ---
     try:
@@ -323,6 +329,17 @@ def analyze_news_with_ticker(req: NewsWithTickerRequest):
         price_now = None
         ret_1m = None
         ret_3m = None
+
+    # --- 株価トレンド文章化（★追加） ---
+    if ret_3m is not None:
+        if ret_3m > 5:
+            trend_text = "直近3ヶ月は上昇トレンド"
+        elif ret_3m < -5:
+            trend_text = "直近3ヶ月は下落トレンド"
+        else:
+            trend_text = "直近3ヶ月は横ばい"
+    else:
+        trend_text = "トレンドデータなし"
 
     # --- 業績データ ---
     try:
@@ -348,13 +365,14 @@ EPS: {eps}
         messages=[{"role": "user", "content": prompt_fin}],
         temperature=0.2,
     )
-    fin_summary = res_fin.choices[0].message.content.strip()
+    fin_summary = res_fin.choices[0].message["content"].strip()
 
+    # --- 再取得（company_name / sector_name）---
     info = yf.Ticker(ticker).info
     company_name = info.get("longName") or info.get("shortName") or ticker
     sector_name = info.get("sector") or "不明"
 
-    # --- ニュース分析 ---
+    # --- ニュース分析（改善版プロンプト） ---
     prompt = f"""
 あなたはプロの株式アナリストです。
 以下のニュースが「この銘柄にとってどれほど重要か」を深く分析してください。
