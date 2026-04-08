@@ -400,16 +400,11 @@ EPS: {eps}
 6. 投資家が次に確認すべきポイント（2〜3個）を挙げる
 
 【出力形式】
-以下の JSON だけを返してください：
+以下の3行だけを返してください：
 
-{{
-  "sentiment_score": "数値",
-  "price_impact": "強い上昇 / 上昇 / 中立 / 下落 / 強い下落",
-  "fundamental_relation": "説明",
-  "sector_relation": "説明",
-  "risk_short_mid": ["短期リスク/チャンス", "中期リスク/チャンス"],
-  "next_checks": ["確認ポイント1", "確認ポイント2"]
-}}
+スコア: （数値）
+影響度: （強い上昇 / 上昇 / 中立 / 下落 / 強い下落）
+理由: （文章）
 """
 
     res_news = client.chat.completions.create(
@@ -418,13 +413,8 @@ EPS: {eps}
         temperature=0.2,
     )
 
-    raw = res_news.choices[0].message.content.strip()
-
-
-    start = raw.find("{")
-    end = raw.rfind("}")
-    js = raw[start:end+1].replace("+", "")
-    analysis = json.loads(js)
+    # GPT の出力をそのまま使用（JSON パース不要）
+    analysis_text = res_news.choices[0].message.content.strip()
 
     # --- 類似ニュース ---
     try:
@@ -454,9 +444,7 @@ EPS: {eps}
 <p>{fin_html}</p>
 
 <h3>ニュース分析</h3>
-<p><b>スコア:</b> {analysis["sentiment_score"]}<br>
-<b>影響度:</b> {analysis["price_impact"]}<br>
-<b>理由:</b> {analysis["fundamental_relation"]}</p>
+<pre style="font-size: 15px; white-space: pre-wrap;">{analysis_text}</pre>
 
 {similar_html}
 
