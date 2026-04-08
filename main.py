@@ -33,38 +33,62 @@ class NewsSearchResponse(BaseModel):
 # ============================
 # /tools/news（Gradio版の移植）
 # ============================
-@app.get("/tools/news")
-def search_news(keyword: str = Query(..., description="検索キーワード")):
-    """
-    SERP API / Google News / Bing News など複数ソースからニュースを取得
-    """
-    try:
-        serp_api_key = os.getenv("SERPAPI_KEY")
-        url = "https://serpapi.com/search"
-        params = {
-            "engine": "google_news",
-            "q": keyword,
-            "api_key": serp_api_key,
-            "hl": "ja"
-        }
-        r = requests.get(url, params=params, timeout=10)
-        r.raise_for_status()
-        data = r.json()
+SERPER_API_KEY = os.getenv("SERPER_API_KEY")
 
-        articles = []
-        for item in data.get("news_results", []):
+@app.get("/tools/news")
+def get_news(keyword: str):
+    url = "https://serpapi.com/search"
+    params = {
+        "engine": "google",
+        "q": keyword + " ニュース",
+        "api_key": SERPER_API_KEY,
+        "num": 5
+    }
+
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    articles = []
+
+    def safe(value):
+        return value if value is not None else ""
+
+    # ① top_stories
+    if "top_stories" in data:
+        for item in data["top_stories"]:
             articles.append({
-                "title": item.get("title"),
-                "link": item.get("link"),
-                "source": item.get("source"),
-                "date": item.get("date"),
-                "snippet": item.get("snippet"),
+                "title": safe(item.get("title")),
+                "snippet": safe(item.get("snippet")),
+                "link": safe(item.get("link")),
+                "source": safe(item.get("source")),
+                "date": safe(item.get("date"))
             })
 
-        return {"articles": articles}
+    # ② organic_results
+    if "organic_results" in data:
+        for item in data["organic_results"]:
+            articles.append({
+                "title": safe(item.get("title")),
+                "snippet": safe(item.get("snippet")),
+                "link": safe(item.get("link")),
+                "source": safe(item.get("source"))
+            })
 
-    except Exception as e:
-        return {"error": str(e), "articles": []}
+    # ③ news_results（あれば）
+    if "news_results" in data:
+        for item in data["news_results"]:
+            articles.append({
+                "title": safe(item.get("title")),
+                "snippet": safe(item.get("snippet")),
+                "link": safe(item.get("link")),
+                "source": safe(item.get("source"))
+            })
+
+    return {
+        "keyword": keyword,
+        "count": len(articles),
+        "articles": articles
+    }
 
 class NewsUrl(BaseModel):
     url: str
@@ -142,7 +166,7 @@ def summarize_similar_news(articles, ticker: str, company_name: str):
     return "<h3>類似ニュースまとめ分析</h3><p>" + text.replace("\n", "<br>") + "</p>"
 
 def search_similar_news(keyword: str):
-    url = "https://stock-news-api-b3bzg9dzbtgmdxbz.japanwest-01.azurewebsites.net/"
+    url = "https://stock-news-api-b3bzg9dzbtgmdxbz.japanwest-01.azurewebsites.net/tools/news"
     r = requests.get(url, params={"keyword": keyword}, timeout=10)
     r.raise_for_status()
     return r.json().get("articles", [])
