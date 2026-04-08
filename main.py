@@ -159,7 +159,7 @@ def summarize_similar_news(articles, ticker: str, company_name: str):
 見出し＋箇条書き中心で、日本語で簡潔に。
 """
     res = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
     )
@@ -183,7 +183,7 @@ def extract_keywords(news_text: str):
 {news_text}
 """
     res = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
     )
