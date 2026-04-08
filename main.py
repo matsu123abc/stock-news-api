@@ -168,7 +168,7 @@ def summarize_similar_news(articles, ticker: str, company_name: str):
 
 def search_similar_news(keyword: str):
     url = "https://stock-news-api-b3bzg9dzbtgmdxbz.japanwest-01.azurewebsites.net/tools/news"
-    r = requests.get(url, params={"keyword": keyword}, timeout=10)
+    r = requests.get(url, params={"keyword": keyword}, timeout=30)
     r.raise_for_status()
     return r.json().get("articles", [])
 
@@ -456,6 +456,8 @@ button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; backgrou
 <label>ニュース本文（自動抽出 or 手動貼り付け）</label>
 <textarea id="newsInput" rows="10" placeholder="ニュース本文を貼り付け、またはURLから抽出"></textarea>
 
+<button onclick="clearNews()">本文クリア</button>
+
 <label>ティッカーコード</label>
 <input id="tickerInput" placeholder="7203.T">
 
@@ -504,6 +506,10 @@ async function analyze() {
 
     const data = await res.json();
     document.getElementById("result").innerHTML = data.html || "<p>エラーが発生しました</p>";
+}
+
+function clearNews() {
+    document.getElementById("newsInput").value = "";
 }
 
 async function analyzeSimilar() {
