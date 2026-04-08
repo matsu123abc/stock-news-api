@@ -300,19 +300,16 @@ def analyze_news_with_ticker(req: NewsWithTickerRequest):
 【企業説明】
 {summary_en}
 """
-        try:
-            res_sum = client.chat.completions.create(
-                model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-                messages=[{"role": "user", "content": prompt_sum}],
-                temperature=0.2,
-            )
-            summary_ja = res_sum.choices[0].message["content"].strip()
-        except Exception:
-            summary_ja = summary_en
-    else:
-        summary_ja = "企業概要データなし"
+    try:
+        res_sum = client.chat.completions.create(
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+            messages=[{"role": "user", "content": prompt_sum}],
+            temperature=0.2,
+        )
+        summary_ja = res_sum.choices[0].message.content.strip()
+    except Exception:
+        summary_ja = summary_en
 
-    # ★ GRADIO版と同じ変数名に揃える
     company_summary = summary_ja
 
     # --- 株価トレンド ---
@@ -365,14 +362,14 @@ EPS: {eps}
         messages=[{"role": "user", "content": prompt_fin}],
         temperature=0.2,
     )
-    fin_summary = res_fin.choices[0].message["content"].strip()
+    fin_summary = res_fin.choices[0].message.content.strip()
 
     # --- 再取得（company_name / sector_name）---
     info = yf.Ticker(ticker).info
     company_name = info.get("longName") or info.get("shortName") or ticker
     sector_name = info.get("sector") or "不明"
 
-    # --- ニュース分析（改善版プロンプト） ---
+    # --- ニュース分析 ---
     prompt = f"""
 あなたはプロの株式アナリストです。
 以下のニュースが「この銘柄にとってどれほど重要か」を深く分析してください。
@@ -414,12 +411,15 @@ EPS: {eps}
   "next_checks": ["確認ポイント1", "確認ポイント2"]
 }}
 """
+
     res_news = client.chat.completions.create(
         model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-        messages=[{"role": "user", "content": prompt_news}],
+        messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
     )
+
     raw = res_news.choices[0].message.content.strip()
+
 
     start = raw.find("{")
     end = raw.rfind("}")
