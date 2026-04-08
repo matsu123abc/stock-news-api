@@ -456,7 +456,7 @@ EPS: {eps}
 <h3>ニュース分析</h3>
 <p><b>スコア:</b> {analysis["sentiment_score"]}<br>
 <b>影響度:</b> {analysis["price_impact"]}<br>
-<b>理由:</b> {analysis["reason"]}</p>
+<b>理由:</b> {analysis["fundamental_relation"]}</p>
 
 {similar_html}
 
