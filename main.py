@@ -300,15 +300,17 @@ def analyze_news_with_ticker(req: NewsWithTickerRequest):
 【企業説明】
 {summary_en}
 """
-    try:
-        res_sum = client.chat.completions.create(
-            model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-            messages=[{"role": "user", "content": prompt_sum}],
-            temperature=0.2,
-        )
-        summary_ja = res_sum.choices[0].message.content.strip()
-    except Exception:
-        summary_ja = summary_en
+        try:
+            res_sum = client.chat.completions.create(
+                model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+                messages=[{"role": "user", "content": prompt_sum}],
+                temperature=0.2,
+            )
+            summary_ja = res_sum.choices[0].message.content.strip()
+        except Exception:
+            summary_ja = summary_en
+    else:
+        summary_ja = ""
 
     company_summary = summary_ja
 
@@ -327,7 +329,7 @@ def analyze_news_with_ticker(req: NewsWithTickerRequest):
         ret_1m = None
         ret_3m = None
 
-    # --- 株価トレンド文章化（★追加） ---
+    # --- 株価トレンド文章化 ---
     if ret_3m is not None:
         if ret_3m > 5:
             trend_text = "直近3ヶ月は上昇トレンド"
@@ -364,7 +366,7 @@ EPS: {eps}
     )
     fin_summary = res_fin.choices[0].message.content.strip()
 
-    # --- 再取得（company_name / sector_name）---
+    # --- 再取得 ---
     info = yf.Ticker(ticker).info
     company_name = info.get("longName") or info.get("shortName") or ticker
     sector_name = info.get("sector") or "不明"
@@ -406,14 +408,11 @@ EPS: {eps}
 影響度: （強い上昇 / 上昇 / 中立 / 下落 / 強い下落）
 理由: （文章）
 """
-
     res_news = client.chat.completions.create(
         model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
         messages=[{"role": "user", "content": prompt}],
         temperature=0.2,
     )
-
-    # GPT の出力をそのまま使用（JSON パース不要）
     analysis_text = res_news.choices[0].message.content.strip()
 
     # --- 類似ニュース ---
@@ -429,6 +428,7 @@ EPS: {eps}
     fin_html = fin_summary.replace("\n", "<br>")
     chart_url = f"https://stocks.finance.yahoo.co.jp/stocks/chart/?code={ticker}"
 
+    # --- ★ 推奨銘柄ボタンを含む HTML（正しい位置） ---
     html = f"""
 <h2>{name}（{ticker}）ニュース総合分析</h2>
 
@@ -457,6 +457,7 @@ EPS: {eps}
 """
 
     return {"html": html}
+
 
 @app.post("/recommend_stocks")
 async def recommend_stocks(payload: dict):
