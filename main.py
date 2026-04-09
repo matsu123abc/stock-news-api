@@ -460,16 +460,54 @@ class RecommendRequest(BaseModel):
     similar_news_summary: str | None = None
 
 @app.post("/recommend_stocks")
-def recommend_stocks(req: RecommendRequest):
-    # 動作確認用の超シンプルな出力
+async def recommend_stocks(payload: dict):
+    ticker = payload.get("ticker", "")
+    news = payload.get("news", "")
+    similar_news_summary = payload.get("similar_news_summary", "")
+
+    prompt = f"""
+あなたはプロの株式アナリストです。
+以下のニュース内容と類似ニュースを踏まえ、
+「今回のニューステーマから最も恩恵を受ける可能性が高い銘柄」を
+セクターに限定せず、3〜5社選定してください。
+
+【対象銘柄】
+ティッカー: {ticker}
+
+【ニュース本文】
+{news}
+
+【類似ニュース（要約またはキーワード）】
+{similar_news_summary}
+
+【分析条件】
+- セクターに限定せず、テーマ横断で選定する
+- 類似ニュースで過去に株価が動いた銘柄を優先する
+- ニュースが示す成長領域・構造変化・投資テーマを抽出する
+- そのテーマと事業ポートフォリオの相性が良い企業を選ぶ
+- 時価総額、収益構造、海外比率、技術優位性も考慮する
+- 「有名どころ」ではなく「恩恵の大きさ」で順位付けする
+
+【出力形式】
+1位: 銘柄名（ティッカー） - 理由（1〜2文）
+2位: 〜
+3位: 〜
+"""
+
+    res = client.chat.completions.create(
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+    )
+
+    text = res.choices[0].message.content.strip()
+
     html = f"""
-    <h3>推奨銘柄（動作確認）</h3>
-    <p>入力されたティッカー: {req.ticker}</p>
-    <p>ニュース文字数: {len(req.news)} 文字</p>
-    <p>類似ニュース要約の有無: {"あり" if req.similar_news_summary else "なし"}</p>
-    <hr>
-    <p>※ この表示が出れば、推奨ボタンは正常に動作しています。</p>
-    """
+<pre style="font-size: 15px; white-space: pre-wrap;">
+{text}
+</pre>
+"""
+
     return {"html": html}
 
 @app.get("/", response_class=HTMLResponse)
