@@ -428,7 +428,6 @@ EPS: {eps}
     fin_html = fin_summary.replace("\n", "<br>")
     chart_url = f"https://stocks.finance.yahoo.co.jp/stocks/chart/?code={ticker}"
 
-    # --- ★ 推奨銘柄ボタンを含む HTML（正しい位置） ---
     html = f"""
 <h2>{name}（{ticker}）ニュース総合分析</h2>
 
@@ -457,7 +456,6 @@ EPS: {eps}
 """
 
     return {"html": html}
-
 
 @app.post("/recommend_stocks")
 async def recommend_stocks(payload: dict):
