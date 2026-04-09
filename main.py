@@ -460,39 +460,40 @@ def home():
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>ニュース総合分析ツール</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body { font-family: sans-serif; padding: 20px; }
-input, textarea { width: 100%; padding: 10px; margin-top: 8px; font-size: 16px; }
-button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; background: #0078D4; color: white; border: none; border-radius: 6px; }
-#result, #similarResult { margin-top: 30px; }
-</style>
+    <meta charset="UTF-8">
+    <title>ニュース総合分析ツール</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        input, textarea { width: 100%; padding: 10px; margin-top: 8px; font-size: 16px; }
+        button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; background: #0078D4; color: white; border: none; border-radius: 6px; }
+        #result, #similarResult { margin-top: 30px; }
+    </style>
 </head>
 <body>
 
-<h2>ニュース総合分析ツール</h2>
+    <h2>ニュース総合分析ツール</h2>
 
-<label>ニュースURL（任意）</label>
-<input id="urlInput" placeholder="https://example.com/news/123">
+    <label>ニュースURL（任意）</label>
+    <input id="urlInput" placeholder="https://example.com/news/123">
 
-<button onclick="extractNews()">ニュース本文を取得</button>
+    <button onclick="extractNews()">ニュース本文を取得</button>
 
-<label>ニュース本文（自動抽出 or 手動貼り付け）</label>
-<textarea id="newsInput" rows="10" placeholder="ニュース本文を貼り付け、またはURLから抽出"></textarea>
+    <label>ニュース本文（自動抽出 or 手動貼り付け）</label>
+    <textarea id="newsInput" rows="10" placeholder="ニュース本文を貼り付け、またはURLから抽出"></textarea>
 
-<button onclick="clearNews()">本文クリア</button>
+    <button onclick="clearNews()">本文クリア</button>
 
-<label>ティッカーコード</label>
-<input id="tickerInput" placeholder="7203.T">
+    <label>ティッカーコード</label>
+    <input id="tickerInput" placeholder="7203.T">
 
-<button onclick="analyze()">分析する</button>
-<button onclick="analyzeSimilar()">類似ニュースを検索</button>
-<button onclick="recommendStocks()">推奨銘柄を表示</button>
+    <button onclick="analyze()">分析する</button>
+    <button onclick="analyzeSimilar()">類似ニュースを検索</button>
+    <button onclick="recommendStocks()">推奨銘柄を表示</button>
 
-<div id="result"></div>
-<div id="similarResult"></div>
+    <div id="result"></div>
+    <div id="similarResult"></div>
+    <div id="recommendArea"></div>
 
 <script>
 async function extractNews() {
@@ -509,7 +510,8 @@ async function extractNews() {
     });
 
     const data = await r.json();
-    document.getElementById("newsInput").value = data.text || "本文抽出に失敗しました。手動で貼り付けてください。";
+    document.getElementById("newsInput").value =
+        data.text || "本文抽出に失敗しました。手動で貼り付けてください。";
 }
 
 async function analyze() {
@@ -532,7 +534,8 @@ async function analyze() {
     });
 
     const data = await res.json();
-    document.getElementById("result").innerHTML = data.html || "<p>エラーが発生しました</p>";
+    document.getElementById("result").innerHTML =
+        data.html || "<p>エラーが発生しました</p>";
 }
 
 function clearNews() {
@@ -561,8 +564,31 @@ async function analyzeSimilar() {
     const html = await res.text();
     document.getElementById("similarResult").innerHTML = html;
 }
+
+async function recommendStocks() {
+    const ticker = document.getElementById("tickerInput").value.trim();
+    const newsText = document.getElementById("newsInput").value.trim();
+    const similarSummary = document.getElementById("similarNewsSummary")
+        ? document.getElementById("similarNewsSummary").innerText.trim()
+        : "";
+
+    const res = await fetch("/recommend_stocks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            ticker: ticker,
+            news: newsText,
+            similar_news_summary: similarSummary
+        })
+    });
+
+    const data = await res.json();
+    document.getElementById("recommendArea").innerHTML =
+        data.html || "<p>推奨銘柄取得エラー</p>";
+}
 </script>
 
 </body>
 </html>
 """
+
