@@ -454,6 +454,24 @@ EPS: {eps}
 
     return {"html": html}
 
+class RecommendRequest(BaseModel):
+    ticker: str
+    news: str
+    similar_news_summary: str | None = None
+
+@app.post("/recommend_stocks")
+def recommend_stocks(req: RecommendRequest):
+    # 動作確認用の超シンプルな出力
+    html = f"""
+    <h3>推奨銘柄（動作確認）</h3>
+    <p>入力されたティッカー: {req.ticker}</p>
+    <p>ニュース文字数: {len(req.news)} 文字</p>
+    <p>類似ニュース要約の有無: {"あり" if req.similar_news_summary else "なし"}</p>
+    <hr>
+    <p>※ この表示が出れば、推奨ボタンは正常に動作しています。</p>
+    """
+    return {"html": html}
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     return """
