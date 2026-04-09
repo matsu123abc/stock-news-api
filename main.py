@@ -454,6 +454,58 @@ EPS: {eps}
 
     return {"html": html}
 
+@app.post("/recommend_stocks")
+async def recommend_stocks(payload: dict):
+    ticker = payload.get("ticker", "")
+    news = payload.get("news", "")
+    similar_news_summary = payload.get("similar_news_summary", "")
+
+    prompt = f"""
+あなたはプロの株式アナリストです。
+以下のニュース内容と類似ニュースを踏まえ、
+「今回のニューステーマから最も恩恵を受ける可能性が高い銘柄」を
+セクターに限定せず、3〜5社選定してください。
+
+【対象銘柄】
+ティッカー: {ticker}
+
+【ニュース本文】
+{news}
+
+【類似ニュース（要約またはキーワード）】
+{similar_news_summary}
+
+【分析条件】
+- セクターに限定せず、テーマ横断で選定する
+- 類似ニュースで過去に株価が動いた銘柄を優先する
+- ニュースが示す成長領域・構造変化・投資テーマを抽出する
+- そのテーマと事業ポートフォリオの相性が良い企業を選ぶ
+- 時価総額、収益構造、海外比率、技術優位性も考慮する
+- 「有名どころ」ではなく「恩恵の大きさ」で順位付けする
+
+【出力形式】
+1位: 銘柄名（ティッカー） - 理由（1〜2文）
+2位: 〜
+3位: 〜
+"""
+
+    res = client.chat.completions.create(
+        model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.2,
+    )
+
+    text = res.choices[0].message.content.strip()
+
+    html = f"""
+<pre style="font-size: 15px; white-space: pre-wrap;">
+{text}
+</pre>
+"""
+
+    return {"html": html}
+
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     return """
@@ -560,6 +612,29 @@ async function analyzeSimilar() {
     const html = await res.text();
     document.getElementById("similarResult").innerHTML = html;
 }
+
+async function recommendStocks() {
+    const ticker = document.getElementById("tickerInput").value.trim();
+    const newsText = document.getElementById("newsInput").value.trim();
+    const similarSummary = document.getElementById("similarNewsSummary") 
+        ? document.getElementById("similarNewsSummary").innerText.trim()
+        : "";
+
+    const res = await fetch("/recommend_stocks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            ticker: ticker,
+            news: newsText,
+            similar_news_summary: similarSummary
+        })
+    });
+
+    const data = await res.json();
+    document.getElementById("recommendArea").innerHTML =
+        data.html || "<p>推奨銘柄取得エラー</p>";
+}
+
 </script>
 
 </body>
