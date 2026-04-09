@@ -489,6 +489,7 @@ button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; backgrou
 
 <button onclick="analyze()">分析する</button>
 <button onclick="analyzeSimilar()">類似ニュースを検索</button>
+<button onclick="recommendStocks()">推奨銘柄を表示</button>
 
 <div id="result"></div>
 <div id="similarResult"></div>
