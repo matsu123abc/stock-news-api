@@ -164,7 +164,15 @@ def summarize_similar_news(articles, ticker: str, company_name: str):
         temperature=0.2,
     )
     text = res.choices[0].message.content.strip()
-    return "<h3>類似ニュースまとめ分析</h3><p>" + text.replace("\n", "<br>") + "</p>"
+
+    # ★★★ 推奨ロジックが拾えるように id を追加 ★★★
+    return f"""
+<h3>類似ニュースまとめ分析</h3>
+<div id="similarNewsSummary">
+{text.replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")}
+</div>
+"""
+
 
 def search_similar_news(keyword: str):
     url = "https://stock-news-api-b3bzg9dzbtgmdxbz.japanwest-01.azurewebsites.net/tools/news"
