@@ -113,7 +113,7 @@ def extract_news(req: NewsUrl):
 
     except Exception as e:
         return JSONResponse({"error": f"本文抽出エラー: {str(e)}"})
-
+    
 def summarize_similar_news(articles, ticker: str, company_name: str):
     if not articles:
         return "<p>類似ニュースが見つかりませんでした。</p>"
@@ -165,14 +165,19 @@ def summarize_similar_news(articles, ticker: str, company_name: str):
     )
     text = res.choices[0].message.content.strip()
 
-    # ★★★ 推奨ロジックが拾えるように id を追加 ★★★
+    # ★ f-string の外で整形する（これが重要）
+    safe_text = (
+        text.replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\n", "<br>")
+    )
+
     return f"""
 <h3>類似ニュースまとめ分析</h3>
 <div id="similarNewsSummary">
-{text.replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")}
+{safe_text}
 </div>
 """
-
 
 def search_similar_news(keyword: str):
     url = "https://stock-news-api-b3bzg9dzbtgmdxbz.japanwest-01.azurewebsites.net/tools/news"
