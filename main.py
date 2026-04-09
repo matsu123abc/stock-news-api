@@ -445,7 +445,7 @@ EPS: {eps}
 <h3>ニュース分析</h3>
 <pre style="font-size: 15px; white-space: pre-wrap;">{analysis_text}</pre>
 
-{similar_html}
+
 
 <h3>推奨銘柄</h3>
 <button onclick="recommendStocks()">推奨銘柄を表示</button>
