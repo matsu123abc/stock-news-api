@@ -536,7 +536,7 @@ def home():
         body { font-family: sans-serif; padding: 20px; }
         input, textarea { width: 100%; padding: 10px; margin-top: 8px; font-size: 16px; }
         button { width: 100%; padding: 12px; margin-top: 15px; font-size: 18px; background: #0078D4; color: white; border: none; border-radius: 6px; }
-        #result, #similarResult { margin-top: 30px; }
+        #result, #similarResult, #recommendArea { margin-top: 30px; }
     </style>
 </head>
 <body>
@@ -559,6 +559,9 @@ def home():
     <button onclick="analyze()">分析する</button>
     <button onclick="analyzeSimilar()">類似ニュースを検索</button>
     <button onclick="recommendStocks()">推奨銘柄を表示</button>
+
+    <!-- ★ HTML保存ボタンを追加 -->
+    <button onclick="saveAnalysisAsHtml()">HTML保存</button>
 
     <div id="result"></div>
     <div id="similarResult"></div>
@@ -655,9 +658,59 @@ async function recommendStocks() {
     document.getElementById("recommendArea").innerHTML =
         data.html || "<p>推奨銘柄取得エラー</p>";
 }
+
+/* ★★★ HTML保存機能 ★★★ */
+function saveAnalysisAsHtml() {
+    const result = document.getElementById("result").innerHTML;
+    const similar = document.getElementById("similarResult").innerHTML;
+    const recommend = document.getElementById("recommendArea").innerHTML;
+
+    const fullHtml = `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ニュース総合分析 保存版</title>
+</head>
+<body>
+<h2>ニュース総合分析 保存版</h2>
+
+<h3>ニュース分析</h3>
+${result}
+
+<h3>類似ニュースまとめ</h3>
+${similar}
+
+<h3>推奨銘柄</h3>
+${recommend}
+
+</body>
+</html>
+`;
+
+    const blob = new Blob([fullHtml], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+
+    const now = new Date();
+    const timestamp =
+        now.getFullYear().toString() +
+        ("0" + (now.getMonth() + 1)).slice(-2) +
+        ("0" + now.getDate()).slice(-2) + "_" +
+        ("0" + now.getHours()).slice(-2) +
+        ("0" + now.getMinutes()).slice(-2) +
+        ("0" + now.getSeconds()).slice(-2);
+
+    a.download = `news_analysis_${timestamp}.html`;
+
+    a.click();
+
+    URL.revokeObjectURL(url);
+}
 </script>
 
 </body>
 </html>
 """
-
