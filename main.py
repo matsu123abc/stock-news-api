@@ -560,7 +560,6 @@ def home():
     <button onclick="analyzeSimilar()">類似ニュースを検索</button>
     <button onclick="recommendStocks()">推奨銘柄を表示</button>
 
-    <!-- ★ HTML保存ボタンを追加 -->
     <button onclick="saveAnalysisAsHtml()">HTML保存</button>
 
     <div id="result"></div>
@@ -591,7 +590,7 @@ async function analyze() {
     const ticker = document.getElementById("tickerInput").value.trim();
 
     if (!newsText) {
-        alert("ニュース本文が空です（URL抽出 or 手動貼り付けが必要です）");
+        alert("ニュース本文が空です");
         return;
     }
     if (!ticker) {
@@ -659,7 +658,7 @@ async function recommendStocks() {
         data.html || "<p>推奨銘柄取得エラー</p>";
 }
 
-/* ★★★ HTML保存機能 ★★★ */
+/* HTML保存（正規表現なし・安全版） */
 function saveAnalysisAsHtml() {
     const newsText = document.getElementById("newsInput").value.trim();
     const result = document.getElementById("result").innerHTML;
@@ -675,35 +674,24 @@ function saveAnalysisAsHtml() {
         ("0" + now.getMinutes()).slice(-2) +
         ("0" + now.getSeconds()).slice(-2);
 
-    // ★ 正規表現を使わずに改行を <br> に変換
     var safeNewsHtml = newsText
         ? newsText
             .split("&").join("&amp;")
             .split("<").join("&lt;")
             .split(">").join("&gt;")
-            .split("\n").join("<br>")
+            .split("\\n").join("<br>")
         : "（ニュース本文なし）";
 
     var fullHtml = ""
-        + "<!DOCTYPE html>\n"
-        + "<html lang=\"ja\">\n"
-        + "<head>\n"
-        + "<meta charset=\"UTF-8\">\n"
-        + "<title>ニュース総合分析 保存版</title>\n"
-        + "</head>\n"
-        + "<body>\n"
-        + "<h2>ニュース総合分析 保存版</h2>\n"
-        + "<p>保存日時: " + timestamp + "</p>\n"
-        + "<h3>ニュース本文</h3>\n"
-        + "<div>" + safeNewsHtml + "</div>\n"
-        + "<h3>ニュース分析</h3>\n"
-        + result + "\n"
-        + "<h3>類似ニュースまとめ</h3>\n"
-        + similar + "\n"
-        + "<h3>推奨銘柄</h3>\n"
-        + recommend + "\n"
-        + "</body>\n"
-        + "</html>\n";
+        + "<!DOCTYPE html><html lang='ja'><head><meta charset='UTF-8'>"
+        + "<title>ニュース総合分析 保存版</title></head><body>"
+        + "<h2>ニュース総合分析 保存版</h2>"
+        + "<p>保存日時: " + timestamp + "</p>"
+        + "<h3>ニュース本文</h3><div>" + safeNewsHtml + "</div>"
+        + "<h3>ニュース分析</h3>" + result
+        + "<h3>類似ニュースまとめ</h3>" + similar
+        + "<h3>推奨銘柄</h3>" + recommend
+        + "</body></html>";
 
     const blob = new Blob([fullHtml], { type: "text/html" });
     const url = URL.createObjectURL(blob);
