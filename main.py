@@ -675,47 +675,44 @@ function saveAnalysisAsHtml() {
         ("0" + now.getMinutes()).slice(-2) +
         ("0" + now.getSeconds()).slice(-2);
 
-    const safeNewsHtml = newsText
-        ? newsText
+    var safeNewsHtml;
+    if (newsText) {
+        safeNewsHtml = newsText
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;")
-            .replace(/\n/g, "<br>")
-        : "（ニュース本文なし）";
+            .replace(/\n/g, "<br>");
+    } else {
+        safeNewsHtml = "（ニュース本文なし）";
+    }
 
-    const fullHtml = `
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<title>ニュース総合分析 保存版</title>
-</head>
-<body>
-<h2>ニュース総合分析 保存版</h2>
-<p>保存日時: ${timestamp}</p>
-
-<h3>ニュース本文</h3>
-<div>${safeNewsHtml}</div>
-
-<h3>ニュース分析</h3>
-${result}
-
-<h3>類似ニュースまとめ</h3>
-${similar}
-
-<h3>推奨銘柄</h3>
-${recommend}
-
-</body>
-</html>
-`;
+    var fullHtml = ""
+        + "<!DOCTYPE html>\n"
+        + "<html lang=\"ja\">\n"
+        + "<head>\n"
+        + "<meta charset=\"UTF-8\">\n"
+        + "<title>ニュース総合分析 保存版</title>\n"
+        + "</head>\n"
+        + "<body>\n"
+        + "<h2>ニュース総合分析 保存版</h2>\n"
+        + "<p>保存日時: " + timestamp + "</p>\n"
+        + "<h3>ニュース本文</h3>\n"
+        + "<div>" + safeNewsHtml + "</div>\n"
+        + "<h3>ニュース分析</h3>\n"
+        + result + "\n"
+        + "<h3>類似ニュースまとめ</h3>\n"
+        + similar + "\n"
+        + "<h3>推奨銘柄</h3>\n"
+        + recommend + "\n"
+        + "</body>\n"
+        + "</html>\n";
 
     const blob = new Blob([fullHtml], { type: "text/html" });
     const url = URL.createObjectURL(blob);
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = `news_analysis_${timestamp}.html`;
+    a.download = "news_analysis_" + timestamp + ".html";
     a.click();
 
     URL.revokeObjectURL(url);
