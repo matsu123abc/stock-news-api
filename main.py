@@ -661,9 +661,27 @@ async function recommendStocks() {
 
 /* ★★★ HTML保存機能 ★★★ */
 function saveAnalysisAsHtml() {
+    const newsText = document.getElementById("newsInput").value.trim();
     const result = document.getElementById("result").innerHTML;
     const similar = document.getElementById("similarResult").innerHTML;
     const recommend = document.getElementById("recommendArea").innerHTML;
+
+    const now = new Date();
+    const timestamp =
+        now.getFullYear().toString() +
+        ("0" + (now.getMonth() + 1)).slice(-2) +
+        ("0" + now.getDate()).slice(-2) + "_" +
+        ("0" + now.getHours()).slice(-2) +
+        ("0" + now.getMinutes()).slice(-2) +
+        ("0" + now.getSeconds()).slice(-2);
+
+    const safeNewsHtml = newsText
+        ? newsText
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/\n/g, "<br>")
+        : "（ニュース本文なし）";
 
     const fullHtml = `
 <!DOCTYPE html>
@@ -674,6 +692,10 @@ function saveAnalysisAsHtml() {
 </head>
 <body>
 <h2>ニュース総合分析 保存版</h2>
+<p>保存日時: ${timestamp}</p>
+
+<h3>ニュース本文</h3>
+<div>${safeNewsHtml}</div>
 
 <h3>ニュース分析</h3>
 ${result}
@@ -693,18 +715,7 @@ ${recommend}
 
     const a = document.createElement("a");
     a.href = url;
-
-    const now = new Date();
-    const timestamp =
-        now.getFullYear().toString() +
-        ("0" + (now.getMonth() + 1)).slice(-2) +
-        ("0" + now.getDate()).slice(-2) + "_" +
-        ("0" + now.getHours()).slice(-2) +
-        ("0" + now.getMinutes()).slice(-2) +
-        ("0" + now.getSeconds()).slice(-2);
-
     a.download = `news_analysis_${timestamp}.html`;
-
     a.click();
 
     URL.revokeObjectURL(url);
