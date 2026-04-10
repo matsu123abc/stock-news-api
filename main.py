@@ -675,16 +675,14 @@ function saveAnalysisAsHtml() {
         ("0" + now.getMinutes()).slice(-2) +
         ("0" + now.getSeconds()).slice(-2);
 
-    var safeNewsHtml;
-    if (newsText) {
-        safeNewsHtml = newsText
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/\n/g, "<br>");
-    } else {
-        safeNewsHtml = "（ニュース本文なし）";
-    }
+    // ★ 正規表現を使わずに改行を <br> に変換
+    var safeNewsHtml = newsText
+        ? newsText
+            .split("&").join("&amp;")
+            .split("<").join("&lt;")
+            .split(">").join("&gt;")
+            .split("\n").join("<br>")
+        : "（ニュース本文なし）";
 
     var fullHtml = ""
         + "<!DOCTYPE html>\n"
