@@ -523,6 +523,51 @@ async def recommend_stocks(payload: dict):
 
     return {"html": html}
 
+@app.get("/tools/news_jp")
+def get_news_jp(keyword: str):
+    url = "https://serpapi.com/search"
+    params = {
+        "engine": "google",
+        "q": keyword + " ニュース",   # ★ 日本語ニュース検索
+        "api_key": SERPER_API_KEY,
+        "num": 5
+    }
+
+    response = requests.get(url, params=params)
+    data = response.json()
+
+    articles = []
+
+    def safe(v):
+        return v if v is not None else ""
+
+    for item in data.get("top_stories", []):
+        articles.append({
+            "title": safe(item.get("title")),
+            "snippet": safe(item.get("snippet")),
+            "link": safe(item.get("link")),
+            "source": safe(item.get("source"))
+        })
+
+    for item in data.get("organic_results", []):
+        articles.append({
+            "title": safe(item.get("title")),
+            "snippet": safe(item.get("snippet")),
+            "link": safe(item.get("link")),
+            "source": safe(item.get("source"))
+        })
+
+    for item in data.get("news_results", []):
+        articles.append({
+            "title": safe(item.get("title")),
+            "snippet": safe(item.get("snippet")),
+            "link": safe(item.get("link")),
+            "source": safe(item.get("source"))
+        })
+
+    return {"keyword": keyword, "count": len(articles), "articles": articles[:5]}
+
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     return """
@@ -565,6 +610,13 @@ def home():
     <div id="result"></div>
     <div id="similarResult"></div>
     <div id="recommendArea"></div>
+
+    <h3>日本株ニュース検索</h3>
+
+    <input id="jpTicker" placeholder="例: 7203.T, 6758.T">
+    <button onclick="searchJpNews()">日本株ニュース検索</button>
+
+    <div id="jpNewsResult"></div>
 
 <script>
 async function extractNews() {
@@ -703,6 +755,33 @@ function saveAnalysisAsHtml() {
 
     URL.revokeObjectURL(url);
 }
+
+async function searchJpNews() {
+    const t = document.getElementById("jpTicker").value.trim();
+    if (!t) {
+        alert("ティッカーコードを入力してください（例: 7203.T）");
+        return;
+    }
+
+    const url = `/tools/news_jp?keyword=${t}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    let html = "<h3>日本株ニュース検索結果</h3>";
+
+    for (const n of data.articles) {
+        html += `
+            <div class="card">
+                <a href="${n.link}" target="_blank">${n.title}</a><br>
+                <small>${n.source}</small><br>
+                <p>${n.snippet}</p>
+            </div>
+        `;
+    }
+
+    document.getElementById("jpNewsResult").innerHTML = html;
+}
+
 </script>
 
 </body>
