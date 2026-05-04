@@ -523,14 +523,27 @@ async def recommend_stocks(payload: dict):
 
     return {"html": html}
 
+
 @app.get("/tools/news_jp")
 def get_news_jp(keyword: str):
+    # --- ティッカー → 日本語企業名に変換 ---
+    try:
+        t = yf.Ticker(keyword)
+        company_name = (
+            t.info.get("longName") or 
+            t.info.get("shortName") or 
+            keyword
+        )
+    except:
+        company_name = keyword
+
+    # --- 日本語ニュース検索 ---
     url = "https://serpapi.com/search"
     params = {
         "engine": "google",
-        "q": keyword + " ニュース",   # ★ 日本語ニュース検索
+        "q": company_name + " ニュース",   # ★ 日本語企業名で検索
         "api_key": SERPER_API_KEY,
-        "num": 5
+        "num": 10
     }
 
     response = requests.get(url, params=params)
@@ -541,6 +554,7 @@ def get_news_jp(keyword: str):
     def safe(v):
         return v if v is not None else ""
 
+    # top_stories
     for item in data.get("top_stories", []):
         articles.append({
             "title": safe(item.get("title")),
@@ -549,14 +563,7 @@ def get_news_jp(keyword: str):
             "source": safe(item.get("source"))
         })
 
-    for item in data.get("organic_results", []):
-        articles.append({
-            "title": safe(item.get("title")),
-            "snippet": safe(item.get("snippet")),
-            "link": safe(item.get("link")),
-            "source": safe(item.get("source"))
-        })
-
+    # news_results（最も一般ニュースが多い）
     for item in data.get("news_results", []):
         articles.append({
             "title": safe(item.get("title")),
@@ -565,7 +572,25 @@ def get_news_jp(keyword: str):
             "source": safe(item.get("source"))
         })
 
-    return {"keyword": keyword, "count": len(articles), "articles": articles[:5]}
+    # organic_results（株価ページは除外）
+    for item in data.get("organic_results", []):
+        link = safe(item.get("link"))
+        if any(x in link for x in ["finance.yahoo", "quote", "stock", "markets"]):
+            continue
+
+        articles.append({
+            "title": safe(item.get("title")),
+            "snippet": safe(item.get("snippet")),
+            "link": link,
+            "source": safe(item.get("source"))
+        })
+
+    return {
+        "keyword": keyword,
+        "company_name": company_name,
+        "count": len(articles),
+        "articles": articles[:5]
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
